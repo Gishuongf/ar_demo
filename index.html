@@ -3,110 +3,115 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR Face Filter</title>
+  <title>AR Face Glam</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      overflow: hidden;
-      background: #000;
-      font-family: 'Segoe UI', sans-serif;
-    }
-    video {
+    body { overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+
+    /* Видео — зеркально, на весь экран */
+    #video {
       position: fixed;
       top: 0; left: 0;
-      width: 100%; height: 100%;
+      width: 100vw; height: 100vh;
       object-fit: cover;
       transform: scaleX(-1);
-    }
-    canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      transform: scaleX(-1);
+      z-index: 1;
     }
 
-    /* Экран загрузки */
-    #loader {
+    /* Canvas — поверх видео, тоже зеркально */
+    #canvas {
       position: fixed;
       top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: #0a0a0a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      width: 100vw; height: 100vh;
+      transform: scaleX(-1);
+      z-index: 2;
+    }
+
+    /* Загрузочный экран */
+    #loader {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #0a0014, #000a1a);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       z-index: 100;
-      transition: opacity 0.5s;
+      transition: opacity 0.6s ease;
     }
     #loader.hidden { opacity: 0; pointer-events: none; }
-    #loader h1 {
-      color: #0ff;
-      font-size: 24px;
-      margin-bottom: 20px;
-      text-shadow: 0 0 20px #0ff;
-    }
-    #loader p {
-      color: #888;
-      font-size: 14px;
-    }
     .spinner {
       width: 50px; height: 50px;
-      border: 3px solid #222;
-      border-top: 3px solid #0ff;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #bf7fff;
       border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 24px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    #loader h1 { color: #e0c0ff; font-size: 22px; margin-bottom: 8px; }
+    #loader p  { color: #666; font-size: 13px; }
 
     /* Кнопка старта */
     #startBtn {
-      position: fixed;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 16px 40px;
-      background: linear-gradient(135deg, #0ff, #f0f);
-      color: #000;
-      font-size: 18px;
-      font-weight: bold;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      z-index: 50;
-      box-shadow: 0 0 30px rgba(0,255,255,0.5);
-      display: none;
+      position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
+      padding: 16px 48px;
+      background: linear-gradient(135deg, #bf7fff 0%, #ff7eb3 100%);
+      color: #fff; font-size: 17px; font-weight: 600;
+      border: none; border-radius: 50px; cursor: pointer;
+      z-index: 50; display: none;
+      box-shadow: 0 4px 30px rgba(191,127,255,0.4);
+      letter-spacing: 0.5px;
     }
     #startBtn:active { transform: translateX(-50%) scale(0.95); }
 
     /* Подсказка */
     #hint {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #fff;
-      font-size: 13px;
-      background: rgba(0,0,0,0.6);
-      padding: 8px 16px;
-      border-radius: 20px;
-      z-index: 50;
-      display: none;
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.8); font-size: 13px;
+      background: rgba(0,0,0,0.5); padding: 8px 20px;
+      border-radius: 20px; z-index: 50; display: none;
       backdrop-filter: blur(10px);
     }
+
+    /* Переключатель эффектов */
+    #effects {
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      display: none; gap: 12px; z-index: 50;
+    }
+    .fx-btn {
+      width: 56px; height: 56px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      color: #fff; font-size: 24px;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fx-btn.active {
+      border-color: #bf7fff;
+      box-shadow: 0 0 16px rgba(191,127,255,0.6);
+      transform: scale(1.1);
+    }
+    .fx-btn:active { transform: scale(0.9); }
   </style>
 </head>
 <body>
 
-  <!-- Загрузка -->
+  <!-- Загрузочный экран -->
   <div id="loader">
     <div class="spinner"></div>
-    <h1>AR Face Filter</h1>
-    <p>Загрузка нейросети...</p>
+    <h1>✨ AR Face Glam</h1>
+    <p>Загрузка...</p>
   </div>
 
-  <button id="startBtn">📷 Включить камеру</button>
-  <div id="hint">Наведите камеру на лицо</div>
+  <button id="startBtn">✨ Включить камеру</button>
+  <div id="hint">Покажите лицо камере</div>
+
+  <!-- Кнопки переключения эффектов -->
+  <div id="effects">
+    <button class="fx-btn active" data-fx="glam" title="Glamour">💎</button>
+    <button class="fx-btn" data-fx="butterfly" title="Бабочки">🦋</button>
+    <button class="fx-btn" data-fx="hearts" title="Сердечки">💖</button>
+    <button class="fx-btn" data-fx="stars" title="Звёзды">⭐</button>
+  </div>
 
   <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
@@ -116,62 +121,248 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 
   <script>
-    const video = document.getElementById('video');
+    const video  = document.getElementById('video');
     const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx    = canvas.getContext('2d');
     const loader = document.getElementById('loader');
     const startBtn = document.getElementById('startBtn');
-    const hint = document.getElementById('hint');
+    const hint   = document.getElementById('hint');
+    const effectsBar = document.getElementById('effects');
 
-    // ─── Связи точек для рисования сетки ───
-    const CONNECTIONS = [
-      // Контур лица
-      [10,338],[338,297],[297,332],[332,284],[284,251],
-      [251,389],[389,356],[356,454],[454,323],[323,361],
-      [361,288],[288,397],[397,365],[365,379],[379,378],
-      [378,400],[400,377],[377,152],[152,148],[148,176],
-      [176,149],[149,150],[150,136],[136,172],[172,58],
-      [58,132],[132,93],[93,234],[234,127],[127,162],
-      [162,21],[21,54],[54,103],[103,67],[67,109],[109,10],
-      // Левая бровь
-      [70,63],[63,105],[105,66],[66,107],[107,55],[55,65],
-      // Правая бровь
-      [300,293],[293,334],[334,296],[296,336],[336,285],[285,295],
-      // Левый глаз
-      [33,7],[7,163],[163,144],[144,145],[145,153],
-      [153,154],[154,155],[155,133],[133,173],[173,157],
-      [157,158],[158,159],[159,160],[160,161],[161,246],[246,33],
-      // Правый глаз
-      [263,249],[249,390],[390,373],[373,374],[374,380],
-      [380,381],[381,382],[382,362],[362,398],[398,384],
-      [384,385],[385,386],[386,387],[387,388],[388,466],[466,263],
-      // Нос
-      [168,6],[6,197],[197,195],[195,5],[5,4],[4,1],[1,19],[19,94],[94,2],
-      // Рот внешний
-      [61,146],[146,91],[91,181],[181,84],[84,17],
-      [17,314],[314,405],[405,321],[321,375],[375,291],
-      [291,409],[409,270],[270,269],[269,267],[267,0],
-      [0,37],[37,39],[39,40],[40,185],[185,61],
-      // Рот внутренний
-      [78,95],[95,88],[88,178],[178,87],[87,14],
-      [14,317],[317,402],[402,318],[318,324],[324,308],
-      [308,415],[415,310],[310,311],[311,312],[312,13],
-      [13,82],[82,81],[81,80],[80,191],[191,78],
-    ];
+    let currentFX = 'glam';
+    let particles = [];
+    let frameCount = 0;
 
-    // ─── Цветовая схема (пульсирует) ───
-    let hue = 180; // начинаем с голубого
+    // Переключение эффектов
+    document.querySelectorAll('.fx-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelector('.fx-btn.active')?.classList.remove('active');
+        btn.classList.add('active');
+        currentFX = btn.dataset.fx;
+        particles = [];
+      });
+    });
 
+    // ─── Частицы ───
+    class Particle {
+      constructor(x, y, emoji, opts = {}) {
+        this.x = x;
+        this.y = y;
+        this.emoji = emoji;
+        this.size = opts.size || (14 + Math.random() * 12);
+        this.life = 1.0;
+        this.decay = opts.decay || (0.008 + Math.random() * 0.008);
+        this.vx = opts.vx || (Math.random() - 0.5) * 2;
+        this.vy = opts.vy || (-1 - Math.random() * 2);
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotSpeed = (Math.random() - 0.5) * 0.1;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.02;          // лёгкая гравитация
+        this.life -= this.decay;
+        this.rotation += this.rotSpeed;
+      }
+      draw(ctx) {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = this.life;
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.font = `${this.size}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.emoji, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function spawnParticles(lm, w, h) {
+      frameCount++;
+
+      // Точки вокруг лица
+      const forehead = lm[10];
+      const chin     = lm[152];
+      const leftEar  = lm[234];
+      const rightEar = lm[454];
+      const nose     = lm[1];
+
+      // Размер лица (для масштабирования)
+      const faceWidth  = Math.abs(rightEar.x - leftEar.x) * w;
+      const faceHeight = Math.abs(chin.y - forehead.y) * h;
+      const cx = nose.x * w;
+      const cy = forehead.y * h;
+
+      const emojis = {
+        butterfly: '🦋',
+        hearts: '💖',
+        stars: '⭐',
+      };
+
+      if (currentFX === 'glam') return; // Glam не использует частицы
+
+      const emoji = emojis[currentFX] || '✨';
+
+      if (frameCount % 3 === 0) {
+        // Спавним по дуге над головой
+        const angle = Math.random() * Math.PI;
+        const radius = faceWidth * 0.7 + Math.random() * faceWidth * 0.3;
+        const px = cx + Math.cos(angle) * radius;
+        const py = cy - faceHeight * 0.3 + Math.sin(-angle) * radius * 0.4;
+
+        particles.push(new Particle(px, py, emoji, {
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: -0.5 - Math.random() * 1.5,
+          size: 16 + Math.random() * 14,
+          decay: 0.006 + Math.random() * 0.006
+        }));
+      }
+
+      // Обновить и удалить мёртвые
+      particles = particles.filter(p => p.life > 0);
+      particles.forEach(p => { p.update(); p.draw(ctx); });
+    }
+
+    // ─── Эффект «Glam»: мягкое свечение вокруг контура лица ───
+    function drawGlam(lm, w, h) {
+      const t = Date.now() * 0.001;
+
+      // ── 1. Мягкий контур лица ──
+      const contour = [
+        10,338,297,332,284,251,389,356,454,323,361,288,397,365,
+        379,378,400,377,152,148,176,149,150,136,172,58,132,93,
+        234,127,162,21,54,103,67,109,10
+      ];
+
+      // Широкое мягкое свечение
+      ctx.beginPath();
+      for (let i = 0; i < contour.length; i++) {
+        const p = lm[contour[i]];
+        if (i === 0) ctx.moveTo(p.x * w, p.y * h);
+        else ctx.lineTo(p.x * w, p.y * h);
+      }
+      ctx.closePath();
+
+      const hue1 = (t * 20) % 360;
+      ctx.strokeStyle = `hsla(${hue1}, 80%, 75%, 0.3)`;
+      ctx.lineWidth = 12;
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = `hsla(${hue1}, 100%, 70%, 0.5)`;
+      ctx.stroke();
+
+      // Тонкая яркая линия поверх
+      ctx.strokeStyle = `hsla(${hue1}, 100%, 85%, 0.7)`;
+      ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = `hsla(${hue1}, 100%, 80%, 0.8)`;
+      ctx.stroke();
+
+      // ── 2. Мягкие блики на скулах ──
+      const leftCheek  = lm[50];
+      const rightCheek = lm[280];
+      const blushSize  = Math.abs(lm[454].x - lm[234].x) * w * 0.18;
+
+      [leftCheek, rightCheek].forEach(cheek => {
+        const grd = ctx.createRadialGradient(
+          cheek.x * w, cheek.y * h, 0,
+          cheek.x * w, cheek.y * h, blushSize
+        );
+        grd.addColorStop(0, 'rgba(255, 130, 180, 0.25)');
+        grd.addColorStop(1, 'rgba(255, 130, 180, 0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(cheek.x * w, cheek.y * h, blushSize, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // ── 3. Блёстки на бровях и скулах ──
+      ctx.shadowBlur = 0;
+      const sparklePoints = [
+        70, 63, 105, 66, 107, 55, 65,   // левая бровь
+        300, 293, 334, 296, 336, 285, 295, // правая бровь
+        116, 123, 345, 352,              // под глазами
+        50, 280,                          // щёки
+        10,                               // лоб
+      ];
+
+      sparklePoints.forEach((idx, i) => {
+        const p = lm[idx];
+        const sparkle = Math.sin(t * 4 + i * 1.7) * 0.5 + 0.5;
+        if (sparkle > 0.6) {
+          const size = 2 + sparkle * 3;
+          const alpha = (sparkle - 0.6) * 2.5;
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(p.x * w, p.y * h);
+          ctx.rotate(t * 2 + i);
+
+          // Звёздочка-крестик
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.2;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = `hsla(${(hue1 + i * 30) % 360}, 100%, 80%, 0.8)`;
+
+          ctx.beginPath();
+          ctx.moveTo(-size, 0); ctx.lineTo(size, 0);
+          ctx.moveTo(0, -size); ctx.lineTo(0, size);
+          ctx.stroke();
+
+          ctx.restore();
+        }
+      });
+
+      // ── 4. Мягкая подводка глаз ──
+      const leftEye  = [33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246,33];
+      const rightEye = [263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466,263];
+
+      [leftEye, rightEye].forEach(eye => {
+        ctx.beginPath();
+        for (let i = 0; i < eye.length; i++) {
+          const p = lm[eye[i]];
+          if (i === 0) ctx.moveTo(p.x * w, p.y * h);
+          else ctx.lineTo(p.x * w, p.y * h);
+        }
+        ctx.strokeStyle = `hsla(${(hue1 + 180) % 360}, 70%, 70%, 0.5)`;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `hsla(${(hue1 + 180) % 360}, 100%, 70%, 0.6)`;
+        ctx.stroke();
+      });
+
+      // ── 5. Мягкий блеск губ ──
+      const lips = [61,146,91,181,84,17,314,405,321,375,291,
+                    409,270,269,267,0,37,39,40,185,61];
+      ctx.beginPath();
+      for (let i = 0; i < lips.length; i++) {
+        const p = lm[lips[i]];
+        if (i === 0) ctx.moveTo(p.x * w, p.y * h);
+        else ctx.lineTo(p.x * w, p.y * h);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(200, 80, 120, 0.12)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 150, 180, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = 'rgba(255, 150, 180, 0.5)';
+      ctx.stroke();
+    }
+
+    // ─── Размеры Canvas ───
     function resize() {
-      canvas.width = video.videoWidth || window.innerWidth;
+      canvas.width  = video.videoWidth  || window.innerWidth;
       canvas.height = video.videoHeight || window.innerHeight;
     }
     window.addEventListener('resize', resize);
 
-    // ─── Обработка каждого кадра ───
+    // ─── Обработка кадра ───
     function onResults(results) {
       resize();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
 
       if (!results.multiFaceLandmarks?.length) {
         hint.style.display = 'block';
@@ -180,87 +371,44 @@
       hint.style.display = 'none';
 
       const lm = results.multiFaceLandmarks[0];
-      const w = canvas.width;
-      const h = canvas.height;
+      const w  = canvas.width;
+      const h  = canvas.height;
 
-      // Пульсация цвета
-      hue = (hue + 0.3) % 360;
-      const color1 = `hsla(${hue}, 100%, 60%, 0.8)`;
-      const color2 = `hsla(${(hue + 120) % 360}, 100%, 60%, 0.9)`;
-
-      // ── Сетка линий ──
-      ctx.lineWidth = 1;
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = color1;
-      ctx.strokeStyle = color1;
-
-      ctx.beginPath();
-      for (const [i, j] of CONNECTIONS) {
-        const a = lm[i];
-        const b = lm[j];
-        if (!a || !b) continue;
-        ctx.moveTo(a.x * w, a.y * h);
-        ctx.lineTo(b.x * w, b.y * h);
+      if (currentFX === 'glam') {
+        drawGlam(lm, w, h);
       }
-      ctx.stroke();
-
-      // ── Светящиеся точки на ключевых точках ──
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = color2;
-      ctx.fillStyle = color2;
-
-      const keyPoints = [
-        10, 152,          // верх лба, подбородок
-        33, 263,          // уголки глаз
-        1, 2,             // кончик носа
-        61, 291,          // уголки рта
-        13, 14,           // губы
-        168,              // переносица
-        234, 454,         // виски
-      ];
-
-      for (const idx of keyPoints) {
-        const p = lm[idx];
-        if (!p) continue;
-        ctx.beginPath();
-        ctx.arc(p.x * w, p.y * h, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      spawnParticles(lm, w, h);
     }
 
-    // ─── Инициализация Face Mesh ───
+    // ─── Face Mesh ───
     const faceMesh = new FaceMesh({
-      locateFile: (file) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
     });
-
     faceMesh.setOptions({
       maxNumFaces: 1,
       refineLandmarks: true,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5
     });
-
     faceMesh.onResults(onResults);
 
-    // Нейросеть загрузилась — показываем кнопку
     faceMesh.initialize().then(() => {
       loader.classList.add('hidden');
       startBtn.style.display = 'block';
     });
 
-    // ─── Кнопка «Включить камеру» ───
+    // ─── Старт камеры ───
     startBtn.addEventListener('click', async () => {
       startBtn.style.display = 'none';
+      effectsBar.style.display = 'flex';
+      hint.style.display = 'block';
 
-      const camera = new Camera(video, {
-        onFrame: async () => {
-          await faceMesh.send({ image: video });
-        },
-        width: 640,
-        height: 480
+      const cam = new Camera(video, {
+        onFrame: async () => { await faceMesh.send({ image: video }); },
+        width: 1280,
+        height: 720
       });
-      await camera.start();
+      await cam.start();
     });
   </script>
 </body>

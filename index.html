@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR Face Filter</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    video {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      transform: scaleX(-1);
+    }
+
+    /* Экран загрузки */
+    #loader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #0a0a0a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s;
+    }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    #loader h1 {
+      color: #0ff;
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px #0ff;
+    }
+    #loader p {
+      color: #888;
+      font-size: 14px;
+    }
+    .spinner {
+      width: 50px; height: 50px;
+      border: 3px solid #222;
+      border-top: 3px solid #0ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Кнопка старта */
+    #startBtn {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 16px 40px;
+      background: linear-gradient(135deg, #0ff, #f0f);
+      color: #000;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      z-index: 50;
+      box-shadow: 0 0 30px rgba(0,255,255,0.5);
+      display: none;
+    }
+    #startBtn:active { transform: translateX(-50%) scale(0.95); }
+
+    /* Подсказка */
+    #hint {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 13px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 16px;
+      border-radius: 20px;
+      z-index: 50;
+      display: none;
+      backdrop-filter: blur(10px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Загрузка -->
+  <div id="loader">
+    <div class="spinner"></div>
+    <h1>AR Face Filter</h1>
+    <p>Загрузка нейросети...</p>
+  </div>
+
+  <button id="startBtn">📷 Включить камеру</button>
+  <div id="hint">Наведите камеру на лицо</div>
+
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const loader = document.getElementById('loader');
+    const startBtn = document.getElementById('startBtn');
+    const hint = document.getElementById('hint');
+
+    // ─── Связи точек для рисования сетки ───
+    const CONNECTIONS = [
+      // Контур лица
+      [10,338],[338,297],[297,332],[332,284],[284,251],
+      [251,389],[389,356],[356,454],[454,323],[323,361],
+      [361,288],[288,397],[397,365],[365,379],[379,378],
+      [378,400],[400,377],[377,152],[152,148],[148,176],
+      [176,149],[149,150],[150,136],[136,172],[172,58],
+      [58,132],[132,93],[93,234],[234,127],[127,162],
+      [162,21],[21,54],[54,103],[103,67],[67,109],[109,10],
+      // Левая бровь
+      [70,63],[63,105],[105,66],[66,107],[107,55],[55,65],
+      // Правая бровь
+      [300,293],[293,334],[334,296],[296,336],[336,285],[285,295],
+      // Левый глаз
+      [33,7],[7,163],[163,144],[144,145],[145,153],
+      [153,154],[154,155],[155,133],[133,173],[173,157],
+      [157,158],[158,159],[159,160],[160,161],[161,246],[246,33],
+      // Правый глаз
+      [263,249],[249,390],[390,373],[373,374],[374,380],
+      [380,381],[381,382],[382,362],[362,398],[398,384],
+      [384,385],[385,386],[386,387],[387,388],[388,466],[466,263],
+      // Нос
+      [168,6],[6,197],[197,195],[195,5],[5,4],[4,1],[1,19],[19,94],[94,2],
+      // Рот внешний
+      [61,146],[146,91],[91,181],[181,84],[84,17],
+      [17,314],[314,405],[405,321],[321,375],[375,291],
+      [291,409],[409,270],[270,269],[269,267],[267,0],
+      [0,37],[37,39],[39,40],[40,185],[185,61],
+      // Рот внутренний
+      [78,95],[95,88],[88,178],[178,87],[87,14],
+      [14,317],[317,402],[402,318],[318,324],[324,308],
+      [308,415],[415,310],[310,311],[311,312],[312,13],
+      [13,82],[82,81],[81,80],[80,191],[191,78],
+    ];
+
+    // ─── Цветовая схема (пульсирует) ───
+    let hue = 180; // начинаем с голубого
+
+    function resize() {
+      canvas.width = video.videoWidth || window.innerWidth;
+      canvas.height = video.videoHeight || window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+
+    // ─── Обработка каждого кадра ───
+    function onResults(results) {
+      resize();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!results.multiFaceLandmarks?.length) {
+        hint.style.display = 'block';
+        return;
+      }
+      hint.style.display = 'none';
+
+      const lm = results.multiFaceLandmarks[0];
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Пульсация цвета
+      hue = (hue + 0.3) % 360;
+      const color1 = `hsla(${hue}, 100%, 60%, 0.8)`;
+      const color2 = `hsla(${(hue + 120) % 360}, 100%, 60%, 0.9)`;
+
+      // ── Сетка линий ──
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = color1;
+      ctx.strokeStyle = color1;
+
+      ctx.beginPath();
+      for (const [i, j] of CONNECTIONS) {
+        const a = lm[i];
+        const b = lm[j];
+        if (!a || !b) continue;
+        ctx.moveTo(a.x * w, a.y * h);
+        ctx.lineTo(b.x * w, b.y * h);
+      }
+      ctx.stroke();
+
+      // ── Светящиеся точки на ключевых точках ──
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = color2;
+      ctx.fillStyle = color2;
+
+      const keyPoints = [
+        10, 152,          // верх лба, подбородок
+        33, 263,          // уголки глаз
+        1, 2,             // кончик носа
+        61, 291,          // уголки рта
+        13, 14,           // губы
+        168,              // переносица
+        234, 454,         // виски
+      ];
+
+      for (const idx of keyPoints) {
+        const p = lm[idx];
+        if (!p) continue;
+        ctx.beginPath();
+        ctx.arc(p.x * w, p.y * h, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ─── Инициализация Face Mesh ───
+    const faceMesh = new FaceMesh({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    faceMesh.onResults(onResults);
+
+    // Нейросеть загрузилась — показываем кнопку
+    faceMesh.initialize().then(() => {
+      loader.classList.add('hidden');
+      startBtn.style.display = 'block';
+    });
+
+    // ─── Кнопка «Включить камеру» ───
+    startBtn.addEventListener('click', async () => {
+      startBtn.style.display = 'none';
+
+      const camera = new Camera(video, {
+        onFrame: async () => {
+          await faceMesh.send({ image: video });
+        },
+        width: 640,
+        height: 480
+      });
+      await camera.start();
+    });
+  </script>
+</body>
+</html>
